@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "---\ntitle: \"Interpolating Missing Data Using Loess\"\noutput: github_document\n---\n\nThis script demonstrates how to interpolate missing values in a time series using a [LOESS curve](https://en.wikipedia.org/wiki/Local_regression). For demonstration purposes, we will be using Median Household Income data from the [Federal Reserve of St Louis](https://fred.stlouisfed.org/series/MHINY36061A052NCEN).\n\n```{r setup}\nknitr::opts_chunk$set(\n\tmessage = FALSE,\n\twarning = FALSE,\n\tinclude = TRUE,\n\tfig.width = 10\n)\n\nrm(list=ls())\n\nsuppressMessages({\n  library(tidyverse)\n  library(stringr)\n})\n\n```\n\n\nLoad the data from the `data` directory. Note the missing values:\n\n```{r}\nMHI_ny_county <- read_csv(\"data/NY County MHI through 2014.csv\")\n\nknitr::kable(head(MHI_ny_county))\n\n```\n\n\nCleanse the data and replace \".\" with NA:\n\n```{r}\nMHI_ny_county<- \n  MHI_ny_county %>% \n  rename(\"MHI\" = MHINY36061A052NCEN) %>% \n  mutate(DATE = as.Date(DATE, format = \"%d/%m/%y\")\n         ,Year = lubridate::year(DATE)\n         ,MHI = as.numeric(str_replace(MHI,\"[.]\",\"\"))\n  ) %>% \n  select(Year,MHI)\n```\n\n\n[ACS Factfinder](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) gives us the 2015 MHI value. We will add that manually, as well as an empty 2016 value which we will forecast in a later step:\n\n```{r}\n# from ACS:\nMHI_ny_county_2015 <- data.frame(\"Year\" = c(2015,2016), \"MHI\" = c(75575,NA))\nMHI_ny_county <- bind_rows(MHI_ny_county, MHI_ny_county_2015)\n\nknitr::kable(tail(MHI_ny_county))\n\n```\n\nInterpolate the missing values using a loess curve:\n\n```{r}\n# spit into the complete and missing data sets:\nempty_rows <- MHI_ny_county %>% filter(is.na(MHI))\nempty_rows$Type <- \"Interp\"\n\ncomplete_data <- MHI_ny_county %>% filter(!is.na(MHI))\ncomplete_data$Type <- \"compelte\"\n```\n\n\n\nWe can change the 'span' parameter to increase the flexibility of the curve. \n\nLet's compare the default span of 0.75 to a span of 1:\n\n```{r, fig.width = 10}\nf_loess <- loess(formula = MHI ~ Year\n                 , span = 0.75\n                 , data = complete_data\n                 , control = loess.control(surface = \"direct\")\n)\n\nempty_rows$MHI <- round(predict(f_loess, empty_rows),0)\n\n\n# recombine the data and view the results:\nfull_data <- bind_rows(complete_data,empty_rows)\n\nfull_data %>% \n  ggplot()+\n  aes(x = Year, y = MHI, group = Type, fill = Type)+\n  geom_col()+\n  theme_bw()+\n  ggthemes::scale_fill_fivethirtyeight()+\n  labs(title = \"Span of 0.75\")\n\n```\n\nThe default span interpolates the missing values nicely, but the 2016 forecast looks flat to 2015. This doesn't look quite right, so let's increase the flexibility of the loess curve a bit by increasing the span parameter:\n\n```{r, fig.width = 10}\nf_loess <- loess(formula = MHI ~ Year\n                 , span = 1\n                 , data = complete_data\n                 , control = loess.control(surface = \"direct\")\n)\n\nempty_rows$MHI <- round(predict(f_loess, empty_rows),0)\n\n\n# recombine the data and view the results:\nfull_data <- bind_rows(complete_data,empty_rows)\n\nfull_data %>% \n  ggplot()+\n  aes(x = Year, y = MHI, group = Type, fill = Type)+\n  geom_col()+\n  theme_bw()+\n  ggthemes::scale_fill_fivethirtyeight()+\n  labs(title = \"Span of 1\")\n\n```\n\nThe span of 1 passes the eye test. \n\nThis approach is sound for quickly interpolating missing data. Here, we extended the technique to forcast 1 period ahead. For more sophisticated univariate forecasting, review Rob J Hyndman's [forecast](https://www.otexts.org/fpp) package in R.\n\n\n\n",
+    "created" : 1497377563412.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4109544260",
+    "id" : "A552BE10",
+    "lastKnownWriteTime" : 1497378959,
+    "last_content_update" : 1497378959887,
+    "path" : "~/Dropbox (hodgeswardelliott)/hodgeswardelliott Team Folder/Teams/Data/Tim_Kiely/MHI data interpolation/README.Rmd",
+    "project_path" : "README.Rmd",
+    "properties" : {
+        "last_setup_crc32" : "B43F4CF05fc58129",
+        "tempName" : "Untitled2"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

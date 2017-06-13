@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "\nrm(list=ls())\nlibrary(tidyverse)\nlibrary(stringr)\n\n# data from https://fred.stlouisfed.org/series/MHINY36061A052NCEN\n\n# MHI (impute a few missing values and manually add 2015)\nMHI_ny_county <- read_csv(\"data/NY County MHI through 2014.csv\")\n\nMHI_ny_county<- \n  MHI_ny_county %>% \n  rename(\"MHI\" = MHINY36061A052NCEN) %>% \n  mutate(DATE = as.Date(DATE, format = \"%d/%m/%y\")\n         ,Year = lubridate::year(DATE)\n         ,MHI = as.numeric(str_replace(MHI,\"[.]\",\"\"))\n  ) %>% \n  select(Year,MHI)\n\n# from ACS:\nMHI_ny_county_2015 <- data.frame(\"Year\" = c(2015,2016), \"MHI\" = c(75575,NA))\nMHI_ny_county <- bind_rows(MHI_ny_county, MHI_ny_county_2015)\n\n\n# interpolate the missing values using a loess curve\nempty_rows <- MHI_ny_county %>% filter(is.na(MHI))\ncomplete_data <- MHI_ny_county %>% filter(!is.na(MHI))\ncomplete_data$Type <- \"compelte\"\nempty_rows$Type <- \"Interp\"\n\n\n# change the 'span' parameter to increase the flexibility of the curve\nf_loess <- loess(formula = MHI ~ Year\n                 , span = 1\n                 , data = complete_data\n                 , control = loess.control(surface = \"direct\")\n)\n\nempty_rows$MHI <- round(predict(f_loess, empty_rows),0)\n\n\n# recombine the data and view the results:\nfull_data <- bind_rows(complete_data,empty_rows)\n\nfull_data %>% \n  ggplot()+\n  aes(x = Year, y = MHI, group = Type, color = Type, fill = Type)+\n  geom_col()\n\n\n",
+    "created" : 1497377556301.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "658757236",
+    "id" : "FB94EBBD",
+    "lastKnownWriteTime" : 1497377650,
+    "last_content_update" : 1497377650229,
+    "path" : "~/Dropbox (hodgeswardelliott)/hodgeswardelliott Team Folder/Teams/Data/Tim_Kiely/MHI data interpolation/interpolate-MHI-data.R",
+    "project_path" : "interpolate-MHI-data.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
